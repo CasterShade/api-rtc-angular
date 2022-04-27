@@ -1,0 +1,19 @@
+<div class="container-fluid">
+  <form [formGroup]="conversationFormGroup" (ngSubmit)="getOrcreateConversation()">
+      <mat-form-field>
+          <mat-label>Conversation Name</mat-label>
+          <input type="text" matInput placeholder="abcd" formControlName="name">
+      </mat-form-field>&nbsp;
+      <button mat-raised-button color="primary" type="submit" [disabled]="!conversationFormGroup.valid" title="Get Or Create Conversation">GetOrCreateConversation</button>
+  </form>
+
+  <div>
+    <button id='toggle-screensharing' (click) = "screenShare()">Toggle screensharing</button>
+  </div>
+  <div>
+      <div id="remote-container">
+      </div>
+      <div id="local-container">
+      </div>
+  </div>
+</div>
