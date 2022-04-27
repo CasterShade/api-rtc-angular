@@ -10,6 +10,8 @@ declare var apiRTC: any;
 })
 export class AppComponent {
   title = 'ApiRTC-angular';
+  conversation:any;
+  screensharingStream:any =null;
 
   conversationFormGroup = this.fb.group({
     name: this.fb.control('', [Validators.required])
@@ -40,16 +42,16 @@ export class AppComponent {
       //==============================
       // 3/ CREATE CONVERSATION
       //==============================
-      const conversation = session.getConversation(this.conversationNameFc.value);
+      this.conversation = session.getConversation(this.conversationNameFc.value);
 
       //==========================================================
       // 4/ ADD EVENT LISTENER : WHEN NEW STREAM IS AVAILABLE IN CONVERSATION
       //==========================================================
-      conversation.on('streamListChanged', (streamInfo: any) => {
+      this.conversation.on('streamListChanged', (streamInfo: any) => {
         console.log("streamListChanged :", streamInfo);
         if (streamInfo.listEventType === 'added') {
           if (streamInfo.isRemote === true) {
-            conversation.subscribeToMedia(streamInfo.streamId)
+            this.conversation.subscribeToMedia(streamInfo.streamId)
               .then((stream: any) => {
                 console.log('subscribeToMedia success');
               }).catch((err: any) => {
@@ -61,7 +63,7 @@ export class AppComponent {
       //=====================================================
       // 4 BIS/ ADD EVENT LISTENER : WHEN STREAM IS ADDED/REMOVED TO/FROM THE CONVERSATION
       //=====================================================
-      conversation.on('streamAdded', (stream: any) => {
+      this.conversation.on('streamAdded', (stream: any) => {
         stream.addInDiv('remote-container', 'remote-media-' + stream.streamId, {}, false);
       }).on('streamRemoved', (stream: any) => {
         stream.removeFromDiv('remote-container', 'remote-media-' + stream.streamId);
@@ -88,12 +90,12 @@ export class AppComponent {
           //==============================
           // 6/ JOIN CONVERSATION
           //==============================
-          conversation.join()
+          this.conversation.join()
             .then((response: any) => {
               //==============================
               // 7/ PUBLISH LOCAL STREAM
               //==============================
-              conversation.publish(localStream);
+              this.conversation.publish(localStream);
             }).catch((err: any) => {
               console.error('Conversation join error', err);
             });
@@ -103,5 +105,68 @@ export class AppComponent {
         });
     });
   }
+  
+  //==============================
+    // SCREENSHARING FEATURE
+    //==============================
+  
+  screenShare() {
+    if (this.screensharingStream === null) {
+
+        const displayMediaStreamConstraints = {
+            video: {
+                cursor: "always"
+            },
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                sampleRate: 44100
+            }
+        };
+
+        apiRTC.Stream.createDisplayMediaStream(displayMediaStreamConstraints, false)
+            .then((stream: { on: (arg0: string, arg1: () => void) => void; }) => {
+
+                stream.on('stopped', () => {
+                    //Used to detect when user stop the screenSharing with Chrome DesktopCapture UI
+                    console.log("stopped event on stream");
+                    var elem = document.getElementById('local-screensharing');
+                    if (elem !== null) {
+                        elem.remove();
+                    }
+                    this.screensharingStream = null;
+                });
+
+                this.screensharingStream = stream;
+                this.conversation.publish(this.screensharingStream);
+                // Get media container
+                var container:any = document.getElementById('local-container');
+
+                // Create media element
+                var mediaElement = document.createElement('video');
+                mediaElement.id = 'local-screensharing';
+                mediaElement.autoplay = true;
+                mediaElement.muted = true;
+
+                // Add media element to media container
+                container.appendChild(mediaElement);
+
+                // Attach stream
+                this.screensharingStream.attachToElement(mediaElement);
+
+            })
+            .catch(function(err: any) {
+                console.error('Could not create screensharing stream :', err);
+            });
+    } else {
+      this.conversation.unpublish(this.screensharingStream);
+        this.screensharingStream.release();
+        const screensharingStream = null;
+        var elem = document.getElementById('local-screensharing');
+        if (elem !== null) {
+            elem.remove();
+        }
+    }
+}
 
 }
